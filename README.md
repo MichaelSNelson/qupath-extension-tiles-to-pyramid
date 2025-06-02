@@ -1,0 +1,290 @@
+# QuPath Basic Stitching Extension
+
+A powerful image stitching extension for QuPath that combines multiple image tiles into seamless pyramidal OME-TIFF files. This extension supports multiple stitching strategies and is designed for high-throughput microscopy workflows.
+
+## Features
+
+- **Multiple Stitching Strategies**: Support for filename-based coordinates, TileConfiguration.txt files, and Vectra metadata
+- **Pyramidal Output**: Generates OME-TIFF files with multiple resolution levels for efficient viewing
+- **Flexible Compression**: Supports various compression formats (JPEG, LZW, ZIP, etc.)
+- **Batch Processing**: Process multiple slides simultaneously with matching criteria
+- **Robust Error Handling**: Comprehensive logging and validation for troubleshooting
+- **Memory Efficient**: Optimized for large datasets with configurable downsampling
+
+## Requirements
+
+- **QuPath**: Version 0.6.0 or greater
+- **Java**: Java 11 or higher
+- **Memory**: Recommended 8GB+ RAM for large image datasets
+
+## Installation
+
+### Option 1: Download Release
+1. Download the latest `.jar` file from the [Releases](../../releases) page
+2. Copy the JAR file to your QuPath extensions directory:
+   - **Windows**: `%USERPROFILE%/QuPath/extensions`
+   - **macOS**: `~/QuPath/extensions`
+   - **Linux**: `~/QuPath/extensions`
+3. Restart QuPath
+
+### Option 2: Build from Source
+```bash
+git clone https://github.com/yourusername/qupath-basic-stitching.git
+cd qupath-basic-stitching
+./gradlew build
+# Copy build/libs/qupath-extension-basic-stitching-*.jar to your QuPath extensions directory
+```
+
+## Usage
+
+### Accessing the Extension
+1. Open QuPath
+2. Navigate to **Extensions** → **Basic Stitching** → **Stitch Images**
+3. The stitching dialog will open
+
+### Stitching Strategies
+
+#### 1. Filename[x,y] with Coordinates in Microns
+For images with coordinates embedded in filenames:
+```
+image_tile[1000,2000].tif
+image_tile[1500,2000].tif
+image_tile[1000,2500].tif
+```
+
+**Usage:**
+- Select folder containing subdirectories with tiles
+- Coordinates in brackets represent physical positions in microns
+- Extension automatically calculates tile positions and overlaps
+
+#### 2. TileConfiguration.txt File
+For ImageJ/Fiji tile configuration format:
+```
+# Define the number of dimensions we are working on
+dim = 2
+
+# Define the image coordinates
+tile_001.tif; ; (0.0, 0.0)
+tile_002.tif; ; (1024.0, 0.0)
+tile_003.tif; ; (0.0, 1024.0)
+tile_004.tif; ; (1024.0, 1024.0)
+```
+
+**Usage:**
+- Each subdirectory must contain a `TileConfiguration.txt` file
+- Coordinates represent pixel positions
+- Automatically scaled based on pixel size and downsample settings
+
+#### 3. Vectra Tiles with Metadata
+For Akoya/PerkinElmer Vectra imaging systems:
+- Reads positioning information directly from TIFF metadata tags
+- Uses `TAG_X_POSITION`, `TAG_Y_POSITION`, and resolution tags
+- No additional configuration files required
+
+### Configuration Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| **Input Folder** | Root directory containing image subdirectories | Required |
+| **Output Folder** | Directory for stitched output files | Required |
+| **Pixel Size (μm)** | Physical size of each pixel in microns | 0.5 |
+| **Base Downsample** | Downsampling factor for output | 1.0 |
+| **Compression** | Output compression format | LZW |
+| **Matching String** | Filter subdirectories by name pattern | "" (all) |
+| **Z-Spacing (μm)** | Z-axis spacing for 3D datasets | 1.0 |
+
+### Example Workflows
+
+#### Basic Stitching
+```java
+// Programmatic usage example
+String result = StitchingImplementations.stitchCore(
+    "Filename[x,y] with coordinates in microns",  // Strategy
+    "/path/to/input/folder",                      // Input path
+    "/path/to/output/folder",                     // Output path
+    "LZW",                                        // Compression
+    0.5,                                          // Pixel size (μm)
+    1.0,                                          // Base downsample
+    "slide"                                       // Matching string
+);
+```
+
+#### Batch Processing with Downsampling
+```java
+String result = StitchingImplementations.stitchCore(
+    "Coordinates in TileConfiguration.txt file",
+    "/data/microscopy/slides",
+    "/data/output/stitched",
+    "JPEG",
+    0.25,    // 0.25 μm/pixel
+    4.0,     // 4x downsample
+    "H&E"    // Process only H&E slides
+);
+```
+
+## Directory Structure
+
+### Input Directory Structure
+```
+input_folder/
+├── slide001_tumor/
+│   ├── tile_001[0,0].tif
+│   ├── tile_002[1000,0].tif
+│   └── tile_003[0,1000].tif
+├── slide002_normal/
+│   ├── tile_001[0,0].tif
+│   └── tile_002[1000,0].tif
+└── slide003_control/
+    └── TileConfiguration.txt
+    ├── image_001.tif
+    └── image_002.tif
+```
+
+### Output Structure
+```
+output_folder/
+├── slide001_tumor.ome.tif
+├── slide002_normal.ome.tif
+└── slide003_control_4x_downsample.ome.tif
+```
+
+## Performance Optimization
+
+### Memory Management
+- **Large Datasets**: Use higher downsample values (2x, 4x) for initial processing
+- **RAM Usage**: Monitor memory usage; increase JVM heap size if needed:
+  ```bash
+  java -Xmx16G -jar QuPath.jar
+  ```
+
+### Processing Speed
+- **Parallel Processing**: Extension automatically uses multiple CPU cores
+- **SSD Storage**: Use SSD drives for input/output to improve I/O performance
+- **Network Storage**: Avoid network drives for temporary processing
+
+### Tile Size Recommendations
+- **Small Tiles** (< 2048px): Fast processing, more metadata overhead
+- **Large Tiles** (> 8192px): Slower processing, less overhead
+- **Optimal Range**: 2048-4096 pixels per tile dimension
+
+## Troubleshooting
+
+### Common Issues
+
+#### "No valid tile configurations found"
+- **Cause**: Directory structure doesn't match expected format
+- **Solution**: Verify subdirectory naming and tile file patterns
+- **Check**: Enable debug logging to see which directories are processed
+
+#### "Could not retrieve dimensions for image"
+- **Cause**: Corrupted or unsupported image format
+- **Solution**: Verify TIFF files are valid and readable
+- **Check**: Test individual files in QuPath or ImageJ
+
+#### "Mismatch between tile configuration file names"
+- **Cause**: TileConfiguration.txt references files not present in directory
+- **Solution**: Ensure all referenced files exist and names match exactly
+- **Check**: Case sensitivity on Linux/macOS systems
+
+#### Out of Memory Errors
+- **Cause**: Insufficient JVM heap space for large datasets
+- **Solution**: Increase heap size or use higher downsample values
+- **Command**: `java -Xmx16G -jar QuPath.jar`
+
+### Debug Logging
+Enable detailed logging by setting log level to DEBUG:
+```properties
+# In QuPath logging configuration
+logger.qupath.ext.basicstitching=DEBUG
+```
+
+### Validation Steps
+1. **File Integrity**: Verify all input TIFF files open correctly
+2. **Coordinate Extraction**: Check log output for parsed coordinates
+3. **Directory Matching**: Confirm subdirectories match the filtering criteria
+4. **Output Verification**: Open resulting OME-TIFF in QuPath to verify stitching quality
+
+## API Documentation
+
+### Core Classes
+
+#### `StitchingImplementations`
+Main coordination class for stitching operations.
+
+**Key Methods:**
+- `stitchCore()`: Primary stitching method
+- `setStitchingStrategy()`: Configure stitching algorithm
+
+#### Strategy Classes
+- `FileNameStitchingStrategy`: Parse coordinates from filenames
+- `TileConfigurationTxtStrategy`: Read ImageJ tile configurations  
+- `VectraMetadataStrategy`: Extract Vectra TIFF metadata
+
+### Extension Points
+The extension supports custom stitching strategies by implementing the `StitchingStrategy` interface:
+
+```java
+public interface StitchingStrategy {
+    List<Map<String, Object>> prepareStitching(
+        String folderPath, 
+        double pixelSizeInMicrons,
+        double baseDownsample, 
+        String matchingString
+    );
+}
+```
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### Development Setup
+```bash
+git clone https://github.com/yourusername/qupath-basic-stitching.git
+cd qupath-basic-stitching
+./gradlew build
+./gradlew test
+```
+
+### Code Style
+- Follow standard Java conventions
+- Add comprehensive logging for debugging
+- Include unit tests for new functionality
+- Update documentation for API changes
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## Citation
+
+If you use this extension in your research, please cite:
+
+```bibtex
+@software{qupath_basic_stitching,
+  title={QuPath Basic Stitching Extension},
+  author={Your Name},
+  year={2025},
+  url={https://github.com/yourusername/qupath-basic-stitching},
+  version={1.0.0}
+}
+```
+
+## Support
+
+- **Issues**: Report bugs and feature requests via [GitHub Issues](../../issues)
+- **Discussions**: Join the conversation in [GitHub Discussions](../../discussions)
+- **QuPath Forum**: Get help from the community at [image.sc](https://forum.image.sc/tag/qupath)
+
+## Changelog
+
+### Version 1.0.0
+- Initial Java conversion from Groovy implementation
+- Support for QuPath 0.6.0+
+- Three stitching strategies implemented
+- Comprehensive error handling and logging
+- Performance optimizations for large datasets
+
+---
+
+**QuPath Basic Stitching Extension** - Seamlessly stitch your microscopy tiles into pyramidal images for efficient analysis and visualization.

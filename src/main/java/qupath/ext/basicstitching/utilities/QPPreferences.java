@@ -11,14 +11,6 @@ import qupath.lib.gui.prefs.PathPrefs;
  * Handles saving and retrieving user preferences across application sessions.
  */
 public class QPPreferences {
-    // Empty base class - could be used for common preference functionality if needed
-}
-
-/**
- * Manages auto-fill persistent preferences for the stitching extension.
- * All preferences are automatically saved and restored between sessions.
- */
-public class AutoFillPersistentPreferences {
 
     // Private static properties for persistent storage
     private static final StringProperty folderLocationSaved =

@@ -1,25 +1,29 @@
 // =======================================================================================
-// 1. BasicStitchingExtension.java
+// 1. MenuStartup.java
 // =======================================================================================
 package qupath.ext.basicstitching;
 
 import javafx.scene.control.MenuItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.basicstitching.functions.StitchingGUI;
 import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
+
+import java.util.ResourceBundle;
 
 /**
  * TODO: create public functions so that stitching can be run from command line or a script
  * CHECK: Always build AND publish to maven local for use with qp-scope
  * ./gradlew publishToMavenLocal
  */
-public class BasicStitchingExtension implements QuPathExtension {
+public class MenuStartup implements QuPathExtension {
 
-    // Instance variables - converted from Groovy property syntax
-    private final String name = "Basic stitching";
-    private final String description = "Basic stitching extension that puts tiles together into pyramidal ome.tif files, no overlap resolution or flat field correction.";
-    private final Version quPathVersion = Version.parse("v0.5.0");
+    private static final Logger logger = LoggerFactory.getLogger(MenuStartup.class);
+    private static final ResourceBundle res = ResourceBundle.getBundle("qupath.ext.basicstitching.ui.strings");
+    private static final Version EXTENSION_QUPATH_VERSION =
+            Version.parse("v0.6.0");
 
     @Override
     public void installExtension(QuPathGUI qupath) {
@@ -33,7 +37,7 @@ public class BasicStitchingExtension implements QuPathExtension {
      */
     @Override
     public String getDescription() {
-        return "Stitch tiles into a pyramidal ome.tif";
+        return res.getString("name");
     }
 
     /**
@@ -43,13 +47,14 @@ public class BasicStitchingExtension implements QuPathExtension {
      */
     @Override
     public String getName() {
-        return "BasicStitching";
+        return "name";
     }
 
     private void addMenuItem(QuPathGUI qupath) {
-        var menu = qupath.getMenu("Extensions>" + name, true);
-        var fileNameStitching = new MenuItem("Basic Stitching Extension");
+        var menu = qupath.getMenu("Extensions>" + res.getString("name"), true);
+        var fileNameStitching = new MenuItem(res.getString("title"));
         fileNameStitching.setOnAction(e -> {
+            logger.info("GUI menu click detected");
             StitchingGUI.createGUI();
         });
         menu.getItems().add(fileNameStitching);

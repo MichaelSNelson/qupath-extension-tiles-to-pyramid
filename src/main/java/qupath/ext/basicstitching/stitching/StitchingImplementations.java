@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.basicstitching.functions.StitchingGUI;
 import qupath.ext.basicstitching.utilities.UtilityFunctions;
 import qupath.lib.common.GeneralTools;
+
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
@@ -1163,7 +1164,8 @@ public class StitchingImplementations {
                     .build();
 
             server.setMetadata(metadataNew);
-            server = ImageServers.pyramidalize(server);
+            //Java conversion required cast to sparse image server?
+            server = (SparseImageServer) ImageServers.pyramidalize(server);
 
             logger.info("Server built successfully with metadata: {}x{} pixels, {:.3f} μm/pixel",
                     server.getWidth(), server.getHeight(), pixelSizeInMicrons);
@@ -1183,14 +1185,20 @@ public class StitchingImplementations {
             logger.info("Writing image to: {}", pathOutput);
             logger.info("Using compression: {}, tile size: 512, downsample: {}", compression, baseDownsample);
 
-            new OMEPyramidWriter.Builder(server)
-                    .tileSize(512)
-                    .channelsInterleaved()
-                    .parallelize(true)
-                    .compression(compression)
-                    .scaledDownsampling(baseDownsample, 4)
-                    .build()
-                    .writeSeries(pathOutput);
+            try {
+                new OMEPyramidWriter.Builder(server)
+                        .tileSize(512)
+                        .channelsInterleaved()
+                        .parallelize(true)
+                        .compression(compression)
+                        .scaledDownsampling(baseDownsample, 4)
+                        .build()
+                        .writeSeries(pathOutput);
+            } catch (Exception e) {
+                // Catch all exceptions including FormatException and IOException
+                logger.error("Error writing stitched image to: {}", pathOutput, e);
+                throw new RuntimeException("Failed to write stitched image: " + e.getMessage(), e);
+            }
 
             long endTime = System.currentTimeMillis();
             double durationSeconds = (endTime - startTime) / 1000.0;

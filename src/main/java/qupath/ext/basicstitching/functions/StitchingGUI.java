@@ -11,7 +11,7 @@ import javafx.stage.Modality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.basicstitching.stitching.StitchingImplementations;
-import qupath.ext.basicstitching.utilities.AutoFillPersistentPreferences;
+import qupath.ext.basicstitching.utilities.QPPreferences;
 import qupath.lib.gui.scripting.QPEx;
 
 import java.awt.Desktop;
@@ -37,11 +37,11 @@ public class StitchingGUI {
     private static final Logger logger = LoggerFactory.getLogger(StitchingGUI.class);
 
     // GUI Components - static fields for persistence across dialog instances
-    static TextField folderField = new TextField(AutoFillPersistentPreferences.getFolderLocationSaved());
+    static TextField folderField = new TextField(QPPreferences.getFolderLocationSaved());
     static ComboBox<String> compressionBox = new ComboBox<>();
-    static TextField pixelSizeField = new TextField(AutoFillPersistentPreferences.getImagePixelSizeInMicronsSaved());
-    static TextField downsampleField = new TextField(AutoFillPersistentPreferences.getDownsampleSaved());
-    static TextField matchStringField = new TextField(AutoFillPersistentPreferences.getSearchStringSaved());
+    static TextField pixelSizeField = new TextField(QPPreferences.getImagePixelSizeInMicronsSaved());
+    static TextField downsampleField = new TextField(QPPreferences.getDownsampleSaved());
+    static TextField matchStringField = new TextField(QPPreferences.getSearchStringSaved());
     static ComboBox<String> stitchingGridBox = new ComboBox<>();
     static Button folderButton = new Button("Select Folder");
 
@@ -91,23 +91,23 @@ public class StitchingGUI {
         try {
             // Read values from dialog and save to persistent preferences
             String folderPath = folderField.getText();
-            AutoFillPersistentPreferences.setFolderLocationSaved(folderPath);
+            QPPreferences.setFolderLocationSaved(folderPath);
 
             String compressionType = compressionBox.getValue();
-            AutoFillPersistentPreferences.setCompressionTypeSaved(compressionType);
+            QPPreferences.setCompressionTypeSaved(compressionType);
 
             // Parse numeric fields with validation
             double pixelSize = parseDoubleField(pixelSizeField.getText(), 0.0);
-            AutoFillPersistentPreferences.setImagePixelSizeInMicronsSaved(String.valueOf(pixelSize));
+            QPPreferences.setImagePixelSizeInMicronsSaved(String.valueOf(pixelSize));
 
             double downsample = parseDoubleField(downsampleField.getText(), 1.0);
-            AutoFillPersistentPreferences.setDownsampleSaved(String.valueOf(downsample));
+            QPPreferences.setDownsampleSaved(String.valueOf(downsample));
 
             String matchingString = matchStringField.getText();
-            AutoFillPersistentPreferences.setSearchStringSaved(matchingString);
+            QPPreferences.setSearchStringSaved(matchingString);
 
             String stitchingType = stitchingGridBox.getValue();
-            AutoFillPersistentPreferences.setStitchingMethodSaved(stitchingType);
+            QPPreferences.setStitchingMethodSaved(stitchingType);
 
             // Call the stitching function with collected data
             String finalImageName = StitchingImplementations.stitchCore(
@@ -226,7 +226,7 @@ public class StitchingGUI {
                 "Coordinates in TileConfiguration.txt file"
         );
 
-        stitchingGridBox.setValue(AutoFillPersistentPreferences.getStitchingMethodSaved());
+        stitchingGridBox.setValue(QPPreferences.getStitchingMethodSaved());
         stitchingGridBox.setOnAction(e -> updateComponentsBasedOnSelection(pane));
 
         addToGrid(pane, stitchingGridLabel, stitchingGridBox);
@@ -288,7 +288,7 @@ public class StitchingGUI {
         compressionBox.getItems().clear();
         compressionBox.getItems().addAll(compressionTypes);
 
-        compressionBox.setValue(AutoFillPersistentPreferences.getCompressionTypeSaved());
+        compressionBox.setValue(QPPreferences.getCompressionTypeSaved());
 
         Tooltip compressionTooltip = new Tooltip("Select the type of image compression.");
         compressionLabel.setTooltip(compressionTooltip);

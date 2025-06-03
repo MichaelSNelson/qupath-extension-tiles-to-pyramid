@@ -15,7 +15,7 @@ repositories {
         url = uri("https://artifacts.openmicroscopy.org/artifactory/maven/")
     }
 }
-// TODO: Configure your extension here (please change the defaults!)
+
 qupathExtension {
     name = "qupath-extension-tiles-to-pyramid"
     group = "io.github.michaelsnelson"
@@ -31,15 +31,11 @@ dependencies {
     shadow(libs.bundles.qupath)
     shadow(libs.bundles.logging)
     shadow(libs.qupath.fxtras)
-    // Add both implementation AND shadow for bioformats
+    // bioformats plugin needed for import qupath.lib.images.writers.ome.OMEPyramidWriter;
     implementation("io.github.qupath:qupath-extension-bioformats:0.6.0-rc4")
-    shadow("io.github.qupath:qupath-extension-bioformats:0.6.0-rc4")
-
-    // Add Bio-Formats explicitly for compile time
-    implementation("ome:formats-gpl:7.1.0")
+    // Add Bio-Formats explicitly for compile time to avoid "class file for loci.formats.FormatException not found"
     shadow("ome:formats-gpl:7.1.0")
-    // Add Bio-Formats explicitly
-    //shadow("ome:formats-gpl:7.1.0")
+
     // If you aren't using Groovy, this can be removed
     shadow(libs.bundles.groovy)
 

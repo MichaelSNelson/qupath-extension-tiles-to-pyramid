@@ -10,6 +10,7 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.basicstitching.config.StitchingConfig;
 import qupath.ext.basicstitching.stitching.StitchingImplementations;
 import qupath.ext.basicstitching.utilities.QPPreferences;
 import qupath.lib.gui.scripting.QPEx;
@@ -83,36 +84,41 @@ public class StitchingGUI {
         }
     }
 
-    /**
-     * Processes the dialog result when OK is clicked.
-     * Validates input, saves preferences, and initiates stitching.
-     */
     private static void processDialogResult() {
         try {
             // Read values from dialog and save to persistent preferences
             String folderPath = folderField.getText();
-            QPPreferences.setFolderLocationSaved(folderPath);
-
+            String outputPath = folderField.getText(); // You may wish to use a separate output field in GUI
             String compressionType = compressionBox.getValue();
-            QPPreferences.setCompressionTypeSaved(compressionType);
-
-            // Parse numeric fields with validation
             double pixelSize = parseDoubleField(pixelSizeField.getText(), 0.0);
-            QPPreferences.setImagePixelSizeInMicronsSaved(String.valueOf(pixelSize));
-
             double downsample = parseDoubleField(downsampleField.getText(), 1.0);
-            QPPreferences.setDownsampleSaved(String.valueOf(downsample));
-
             String matchingString = matchStringField.getText();
-            QPPreferences.setSearchStringSaved(matchingString);
-
             String stitchingType = stitchingGridBox.getValue();
-            QPPreferences.setStitchingMethodSaved(stitchingType);
+            double zSpacingMicrons = 1.0; // Set from GUI or default
 
-            // Call the stitching function with collected data
+            // Create a config object
+            StitchingConfig config = new StitchingConfig(
+                    stitchingType,
+                    folderPath,
+                    outputPath,
+                    compressionType,
+                    pixelSize,
+                    downsample,
+                    matchingString,
+                    zSpacingMicrons
+            );
+
+            // Use the config to call the workflow (future step)
+            // For now, pass its fields to your old stitchCore
             String finalImageName = StitchingImplementations.stitchCore(
-                    stitchingType, folderPath, folderPath, compressionType,
-                    pixelSize, downsample, matchingString
+                    config.stitchingType,
+                    config.folderPath,
+                    config.outputPath,
+                    config.compressionType,
+                    config.pixelSizeInMicrons,
+                    config.baseDownsample,
+                    config.matchingString,
+                    config.zSpacingMicrons
             );
 
         } catch (Exception e) {
@@ -120,6 +126,7 @@ public class StitchingGUI {
             showAlertDialog("Error processing input: " + e.getMessage());
         }
     }
+
 
     /**
      * Safely parses a string to double with a default fallback value.

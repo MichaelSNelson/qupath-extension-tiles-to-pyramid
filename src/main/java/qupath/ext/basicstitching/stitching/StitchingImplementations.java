@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.basicstitching.functions.StitchingGUI;
 import qupath.ext.basicstitching.utilities.UtilityFunctions;
 import qupath.lib.common.GeneralTools;
-
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
@@ -1156,16 +1155,17 @@ public class StitchingImplementations {
 
             logger.info("=== Building and configuring server ===");
             // Build and pyramidalize the server for the final stitched image
-            var server = builder.build();
+            var sparseServer = builder.build();
 
-            var metadataNew = new ImageServerMetadata.Builder(server.getMetadata())
+            var metadataNew = new ImageServerMetadata.Builder(sparseServer.getMetadata())
                     .pixelSizeMicrons(pixelSizeInMicrons, pixelSizeInMicrons)
                     .zSpacingMicrons(zSpacingMicrons)
                     .build();
 
-            server.setMetadata(metadataNew);
-            //Java conversion required cast to sparse image server?
-            server = (SparseImageServer) ImageServers.pyramidalize(server);
+            sparseServer.setMetadata(metadataNew);
+
+            // Pyramidalize returns a different server type in QuPath 0.6.0+
+            var server = ImageServers.pyramidalize(sparseServer);
 
             logger.info("Server built successfully with metadata: {}x{} pixels, {:.3f} μm/pixel",
                     server.getWidth(), server.getHeight(), pixelSizeInMicrons);

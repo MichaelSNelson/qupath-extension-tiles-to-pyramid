@@ -19,6 +19,7 @@ public class StitchingConfig {
             double baseDownsample,
             String matchingString,
             double zSpacingMicrons
+
     ) {
         this.stitchingType = stitchingType;
         this.folderPath = folderPath;
@@ -28,5 +29,6 @@ public class StitchingConfig {
         this.baseDownsample = baseDownsample;
         this.matchingString = matchingString;
         this.zSpacingMicrons = zSpacingMicrons;
+
     }
 }

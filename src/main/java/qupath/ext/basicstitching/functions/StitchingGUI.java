@@ -11,8 +11,8 @@ import javafx.stage.Modality;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.basicstitching.config.StitchingConfig;
-import qupath.ext.basicstitching.stitching.StitchingImplementations;
 import qupath.ext.basicstitching.utilities.QPPreferences;
+import qupath.ext.basicstitching.workflow.StitchingWorkflow;
 import qupath.lib.gui.scripting.QPEx;
 
 import java.awt.Desktop;
@@ -108,24 +108,22 @@ public class StitchingGUI {
                     zSpacingMicrons
             );
 
-            // Use the config to call the workflow (future step)
-            // For now, pass its fields to your old stitchCore
-            String finalImageName = StitchingImplementations.stitchCore(
-                    config.stitchingType,
-                    config.folderPath,
-                    config.outputPath,
-                    config.compressionType,
-                    config.pixelSizeInMicrons,
-                    config.baseDownsample,
-                    config.matchingString,
-                    config.zSpacingMicrons
-            );
+            // Use the new workflow instead of the old StitchingImplementations
+            String finalImageName = StitchingWorkflow.run(config);
+
+            // Optionally: display success or error dialog
+            if (finalImageName != null) {
+                showAlertDialog("Stitching complete: " + finalImageName);
+            } else {
+                showAlertDialog("Stitching failed. See logs for details.");
+            }
 
         } catch (Exception e) {
             logger.error("Error processing dialog result", e);
             showAlertDialog("Error processing input: " + e.getMessage());
         }
     }
+
 
 
     /**

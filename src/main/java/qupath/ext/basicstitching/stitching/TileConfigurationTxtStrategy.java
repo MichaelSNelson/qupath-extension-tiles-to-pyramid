@@ -15,7 +15,24 @@ import java.util.regex.Pattern;
  */
 public class TileConfigurationTxtStrategy implements StitchingStrategy {
     private static final Logger logger = LoggerFactory.getLogger(TileConfigurationTxtStrategy.class);
-
+    /**
+     * Prepares tile mappings for image stitching based on coordinates in TileConfiguration.txt files.
+     *
+     * This method:
+     * <ul>
+     *     <li>Iterates through subdirectories in the specified root folder whose names contain the given matching string.</li>
+     *     <li>For each such subdirectory, parses its TileConfiguration.txt to get image positions (in microns, downsampled as specified).</li>
+     *     <li>Finds all TIFF files, matches them to config entries, and creates ImageRegion mappings.</li>
+     *     <li>Adjusts the Y coordinate for each tile at runtime so that tiles with the largest Y are placed at the top,
+     *         matching the convention of Fiji's Grid/Collection Stitcher.</li>
+     * </ul>
+     *
+     * @param folderPath         The path to the root directory containing tile subdirectories.
+     * @param pixelSizeInMicrons The pixel size in microns (used to scale coordinates to pixels).
+     * @param baseDownsample     Downsampling factor applied to the coordinates.
+     * @param matchingString     String to match in subdirectory names for inclusion.
+     * @return A list of TileMapping objects representing each tile's file, image region, and subdirectory.
+     */
     @Override
     public List<TileMapping> prepareStitching(String folderPath, double pixelSizeInMicrons,
                                               double baseDownsample, String matchingString) {
@@ -32,20 +49,39 @@ public class TileConfigurationTxtStrategy implements StitchingStrategy {
                         continue;
                     }
                     logger.info("Processing subdir: {} with config {}", path, configPath);
+
+                    // Parse positions from config
                     Map<String, Position> positionMap = parseTileConfig(configPath, pixelSizeInMicrons, baseDownsample);
+
+                    // Compute maxY for this subdirectory (needed for Y-flip adjustment)
+                    OptionalDouble maxYOpt = positionMap.values().stream()
+                            .mapToDouble(pos -> pos.y)
+                            .max();
+                    if (!maxYOpt.isPresent()) {
+                        logger.warn("No tile positions found in config: {}", configPath);
+                        continue;
+                    }
+                    double maxY = maxYOpt.getAsDouble();
+
                     try (DirectoryStream<Path> tifStream = Files.newDirectoryStream(path, "*.tif*")) {
                         for (Path tifPath : tifStream) {
                             String filename = tifPath.getFileName().toString();
                             Position pos = positionMap.get(filename);
                             Map<String, Integer> dims = UtilityFunctions.getTiffDimensions(tifPath.toFile());
                             if (pos != null && dims != null) {
+                                // Flip Y so that larger Y values are at the top (Fiji-style)
+                                double adjustedY = maxY - pos.y;
                                 ImageRegion region = ImageRegion.createInstance(
-                                        (int)pos.x, (int)pos.y, dims.get("width"), dims.get("height"), 0, 0
+                                        (int)Math.round(pos.x),
+                                        (int)Math.round(adjustedY),
+                                        dims.get("width"),
+                                        dims.get("height"),
+                                        0, 0
                                 );
                                 mappings.add(new TileMapping(
                                         tifPath.toFile(), region, path.getFileName().toString()
                                 ));
-                                logger.debug("Mapped {} at ({}, {}) from config", filename, pos.x, pos.y);
+                                logger.debug("Mapped {} at ({}, {} [flipped Y]) from config", filename, pos.x, adjustedY);
                             } else {
                                 logger.warn("Missing config position or TIFF dimensions for {}", filename);
                             }

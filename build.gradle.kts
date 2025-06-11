@@ -5,6 +5,24 @@ plugins {
     id("com.gradleup.shadow") version "8.3.5"
     // QuPath Gradle extension convention plugin
     id("qupath-conventions")
+    id("maven-publish")
+}
+
+//Required for working with qupath-extension-qpsc in IntelliJ, allowing import statements to work
+//Build this with gradle, then use publishToMavenLocal in order for imports like
+//import qupath.ext.basicstitching.config.StitchingConfig;
+//import qupath.ext.basicstitching.workflow.StitchingWorkflow;
+//to work
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            groupId = "io.github.michaelsnelson"
+            artifactId = "qupath-extension-tiles-to-pyramid"
+            version = "0.1.0"
+
+            from(components["java"])
+        }
+    }
 }
 repositories {
     mavenCentral()

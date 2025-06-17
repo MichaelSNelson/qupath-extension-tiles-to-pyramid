@@ -13,4 +13,5 @@ public interface StitchingStrategy {
             double baseDownsample,
             String matchingString
     );
+
 }

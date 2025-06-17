@@ -141,11 +141,14 @@ public class UtilityFunctions {
 
     /**
      * Parse a Vectra TIFF for spatial coordinates and image dimensions using baseline TIFF tags.
+     * This overloaded version accepts fudge factors to correct for stage calibration issues.
      *
      * @param file TIFF file to extract from
+     * @param xFudgeFactor Multiplicative factor for X resolution (typically slightly less than 1.0)
+     * @param yFudgeFactor Multiplicative factor for Y resolution (typically slightly less than 1.0)
      * @return VectraRegionInfo object with pixel coordinates and image size, or null on failure
      */
-    public static VectraRegionInfo getVectraPositionAndDimensions(File file) {
+    public static VectraRegionInfo getVectraPositionAndDimensions(File file, double xFudgeFactor, double yFudgeFactor) {
         try (FileInputStream fis = new FileInputStream(file);
              ImageInputStream iis = ImageIO.createImageInputStream(fis)) {
             Iterator<ImageReader> readers = ImageIO.getImageReadersByFormatName("TIFF");
@@ -162,8 +165,9 @@ public class UtilityFunctions {
             logger.debug("TIFFDirectory parsed for file: {}", file.getName());
 
             // Extract rational values for resolution and position
-            double xRes = getRational(tiffDir, BaselineTIFFTagSet.TAG_X_RESOLUTION);
-            double yRes = getRational(tiffDir, BaselineTIFFTagSet.TAG_Y_RESOLUTION);
+            // Apply fudge factors to resolution values
+            double xRes = getRational(tiffDir, BaselineTIFFTagSet.TAG_X_RESOLUTION) * xFudgeFactor;
+            double yRes = getRational(tiffDir, BaselineTIFFTagSet.TAG_Y_RESOLUTION) * yFudgeFactor;
             double xPos = getRational(tiffDir, BaselineTIFFTagSet.TAG_X_POSITION);
             double yPos = getRational(tiffDir, BaselineTIFFTagSet.TAG_Y_POSITION);
 
@@ -177,13 +181,24 @@ public class UtilityFunctions {
             int xPx = (int) Math.round(xRes * xPos);
             int yPx = (int) Math.round(yRes * yPos);
 
-            logger.info("Extracted Vectra region from {}: x={}, y={}, width={}, height={}",
-                    file.getName(), xPx, yPx, width, height);
+            logger.info("Extracted Vectra region from {} with fudge factors (X: {}, Y: {}): x={}, y={}, width={}, height={}",
+                    file.getName(), xFudgeFactor, yFudgeFactor, xPx, yPx, width, height);
             return new VectraRegionInfo(xPx, yPx, width, height);
         } catch (Exception e) {
             logger.error("Failed to extract Vectra region info from {}", file.getName(), e);
             return null;
         }
+    }
+
+    /**
+     * Parse a Vectra TIFF for spatial coordinates and image dimensions using baseline TIFF tags.
+     * Uses default fudge factors of 1.0 (no adjustment).
+     *
+     * @param file TIFF file to extract from
+     * @return VectraRegionInfo object with pixel coordinates and image size, or null on failure
+     */
+    public static VectraRegionInfo getVectraPositionAndDimensions(File file) {
+        return getVectraPositionAndDimensions(file, 1.0, 1.0);
     }
 
     /**
@@ -219,5 +234,6 @@ public class UtilityFunctions {
             this.height = height;
         }
     }
+
 
 }

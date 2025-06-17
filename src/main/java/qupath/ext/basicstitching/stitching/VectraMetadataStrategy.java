@@ -11,14 +11,29 @@ import java.util.*;
 /**
  * Stitching strategy for Vectra multiplex TIFFs using metadata for position.
  * Builds TileMapping list for all TIFF files in matching subfolders.
+ * Supports fudge factors to correct for stage calibration issues.
  */
 public class VectraMetadataStrategy implements StitchingStrategy {
     private static final Logger logger = LoggerFactory.getLogger(VectraMetadataStrategy.class);
+    private double xFudgeFactor = 1.0;
+    private double yFudgeFactor = 1.0;
+
+    // Constructor for setting fudge factors
+    public VectraMetadataStrategy(double xFudgeFactor, double yFudgeFactor) {
+        this.xFudgeFactor = xFudgeFactor;
+        this.yFudgeFactor = yFudgeFactor;
+    }
+
+    // Default constructor
+    public VectraMetadataStrategy() {
+        this(1.0, 1.0);
+    }
 
     @Override
     public List<TileMapping> prepareStitching(String folderPath, double pixelSizeInMicrons,
                                               double baseDownsample, String matchingString) {
         logger.info("Preparing stitching using Vectra metadata strategy for folder: {}", folderPath);
+        logger.info("Using fudge factors - X: {}, Y: {}", xFudgeFactor, yFudgeFactor);
         List<TileMapping> mappings = new ArrayList<>();
         Path rootdir = Paths.get(folderPath);
 
@@ -29,7 +44,8 @@ public class VectraMetadataStrategy implements StitchingStrategy {
                     try (DirectoryStream<Path> tifStream = Files.newDirectoryStream(path, "*.tif*")) {
                         for (Path tifPath : tifStream) {
                             String filename = tifPath.getFileName().toString();
-                            UtilityFunctions.VectraRegionInfo info = UtilityFunctions.getVectraPositionAndDimensions(tifPath.toFile());
+                            UtilityFunctions.VectraRegionInfo info = UtilityFunctions.getVectraPositionAndDimensions(
+                                    tifPath.toFile(), xFudgeFactor, yFudgeFactor);
                             if (info != null) {
                                 // If info.xPx/yPx are already in pixels, no scaling by pixelSizeInMicrons needed
                                 ImageRegion region = ImageRegion.createInstance(
@@ -51,12 +67,5 @@ public class VectraMetadataStrategy implements StitchingStrategy {
         }
         logger.info("Total Vectra tiles mapped: {}", mappings.size());
         return mappings;
-    }
-
-    /** Dummy class. Replace with your actual Vectra position extraction logic. */
-    public static class VectraPositionInfo {
-        public final double x;
-        public final double y;
-        public VectraPositionInfo(double x, double y) { this.x = x; this.y = y; }
     }
 }

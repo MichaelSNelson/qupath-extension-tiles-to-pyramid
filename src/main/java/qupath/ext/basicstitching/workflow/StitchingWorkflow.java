@@ -55,7 +55,7 @@ public class StitchingWorkflow {
             logger.info("Stitching workflow starting: type={} folder={}", config.stitchingType, config.folderPath);
 
             // 1. Select the appropriate strategy for this stitching type.
-            StitchingStrategy strategy = StitchingStrategyFactory.getStrategy(config.stitchingType);
+            StitchingStrategy strategy = StitchingStrategyFactory.getStrategy(config);
             if (strategy == null) {
                 logger.error("No valid stitching strategy for type: {}", config.stitchingType);
                 return null;

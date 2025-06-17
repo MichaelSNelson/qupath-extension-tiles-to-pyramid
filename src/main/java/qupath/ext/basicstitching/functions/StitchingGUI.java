@@ -22,6 +22,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Tooltip;
+import java.awt.Desktop;
+import java.net.URI;
 
 import static qupath.ext.basicstitching.utilities.UtilityFunctions.getCompressionTypeList;
 
@@ -45,7 +49,10 @@ public class StitchingGUI {
     static TextField matchStringField = new TextField(QPPreferences.getSearchStringSaved());
     static ComboBox<String> stitchingGridBox = new ComboBox<>();
     static Button folderButton = new Button("Select Folder");
-
+    static CheckBox useFudgeFactorCheckbox = new CheckBox("Apply fudge factor to adjust for gaps between tiles");
+    static TextField xFudgeField = new TextField("1.0");
+    static TextField yFudgeField = new TextField("1.0");
+    static Hyperlink vectraForumLink = new Hyperlink("See forum discussion");
     // Labels
     static Label stitchingGridLabel = new Label("Stitching Method:");
     static Label folderLabel = new Label("Folder location:");
@@ -54,6 +61,8 @@ public class StitchingGUI {
     static Label downsampleLabel = new Label("Downsample:");
     static Label matchStringLabel = new Label("Stitch sub-folders with text string:");
     static Hyperlink githubLink = new Hyperlink("GitHub ReadMe");
+    static Label xFudgeLabel = new Label("X fudge factor:");
+    static Label yFudgeLabel = new Label("Y fudge factor:");
 
     // Map to hold the positions of each GUI element
     private static Map<Node, Integer> guiElementPositions = new HashMap<>();
@@ -88,15 +97,23 @@ public class StitchingGUI {
         try {
             // Read values from dialog and save to persistent preferences
             String folderPath = folderField.getText();
-            String outputPath = folderField.getText(); // You may wish to use a separate output field in GUI
+            String outputPath = folderField.getText();
             String compressionType = compressionBox.getValue();
             double pixelSize = parseDoubleField(pixelSizeField.getText(), 0.0);
             double downsample = parseDoubleField(downsampleField.getText(), 1.0);
             String matchingString = matchStringField.getText();
             String stitchingType = stitchingGridBox.getValue();
-            double zSpacingMicrons = 1.0; // Set from GUI or default
+            double zSpacingMicrons = 1.0;
 
-            // Create a config object
+            // Handle fudge factors for Vectra
+            double xFudgeFactor = 1.0;
+            double yFudgeFactor = 1.0;
+            if ("Vectra tiles with metadata".equals(stitchingType) && useFudgeFactorCheckbox.isSelected()) {
+                xFudgeFactor = parseDoubleField(xFudgeField.getText(), 1.0);
+                yFudgeFactor = parseDoubleField(yFudgeField.getText(), 1.0);
+            }
+
+            // Create a config object with fudge factors
             StitchingConfig config = new StitchingConfig(
                     stitchingType,
                     folderPath,
@@ -105,10 +122,12 @@ public class StitchingGUI {
                     pixelSize,
                     downsample,
                     matchingString,
-                    zSpacingMicrons
+                    zSpacingMicrons,
+                    xFudgeFactor,
+                    yFudgeFactor
             );
 
-            // Use the new workflow instead of the old StitchingImplementations
+            // Use the new workflow
             String finalImageName = StitchingWorkflow.run(config);
 
             // Optionally: display success or error dialog
@@ -123,6 +142,7 @@ public class StitchingGUI {
             showAlertDialog("Error processing input: " + e.getMessage());
         }
     }
+
 
 
 
@@ -170,7 +190,7 @@ public class StitchingGUI {
 
         // Update the components' visibility based on the current selection
         updateComponentsBasedOnSelection(pane);
-
+        addFudgeFactorComponents(pane);
         return pane;
     }
 
@@ -218,6 +238,10 @@ public class StitchingGUI {
         guiElementPositions.put(downsampleLabel, currentPosition++);
         guiElementPositions.put(matchStringLabel, currentPosition++);
         guiElementPositions.put(githubLink, currentPosition++);
+        guiElementPositions.put(useFudgeFactorCheckbox, currentPosition++);
+        guiElementPositions.put(xFudgeLabel, currentPosition++);
+        guiElementPositions.put(yFudgeLabel, currentPosition++);
+        guiElementPositions.put(vectraForumLink, currentPosition++);
     }
 
     /**
@@ -335,11 +359,20 @@ public class StitchingGUI {
      */
     private static void updateComponentsBasedOnSelection(GridPane pane) {
         String selectedValue = stitchingGridBox.getValue();
-        boolean hidePixelSize = "Vectra multiplex tif".equals(selectedValue) ||
-                "Coordinates in TileCoordinates.txt file".equals(selectedValue);
+        boolean hidePixelSize = "Vectra tiles with metadata".equals(selectedValue) ||
+                "Coordinates in TileConfiguration.txt file".equals(selectedValue);
 
         pixelSizeLabel.setVisible(!hidePixelSize);
         pixelSizeField.setVisible(!hidePixelSize);
+
+        // Show fudge factor components only for Vectra
+        boolean showFudgeFactor = "Vectra tiles with metadata".equals(selectedValue);
+        useFudgeFactorCheckbox.setVisible(showFudgeFactor);
+        if (showFudgeFactor && useFudgeFactorCheckbox.isSelected()) {
+            setFudgeFactorVisibility(true);
+        } else {
+            setFudgeFactorVisibility(false);
+        }
 
         adjustLayout(pane);
     }
@@ -369,4 +402,55 @@ public class StitchingGUI {
         alert.initModality(Modality.APPLICATION_MODAL);
         alert.showAndWait();
     }
+    private static void addFudgeFactorComponents(GridPane pane) {
+        // Checkbox with tooltip
+        Tooltip fudgeTooltip = new Tooltip(
+                "Fudge factor to adjust for empty black lines between tiles (slightly less than 1.0).\n" +
+                        "See forum discussion for details."
+        );
+        useFudgeFactorCheckbox.setTooltip(fudgeTooltip);
+
+        // Set up the forum link
+        vectraForumLink.setOnAction(e -> {
+            try {
+                Desktop.getDesktop().browse(new URI("https://forum.image.sc/t/vectra-polaris-tile-stitching/35739/5"));
+            } catch (Exception ex) {
+                logger.error("Error opening forum link", ex);
+            }
+        });
+
+        // Add checkbox spanning two columns
+        Integer checkboxRow = guiElementPositions.get(useFudgeFactorCheckbox);
+        if (checkboxRow != null) {
+            pane.add(useFudgeFactorCheckbox, 0, checkboxRow, 2, 1);
+        }
+
+        // Add fudge factor fields
+        addToGrid(pane, xFudgeLabel, xFudgeField);
+        addToGrid(pane, yFudgeLabel, yFudgeField);
+
+        // Add forum link
+        Integer linkRow = guiElementPositions.get(vectraForumLink);
+        if (linkRow != null) {
+            pane.add(vectraForumLink, 0, linkRow, 2, 1);
+        }
+
+        // Initially hide these components
+        setFudgeFactorVisibility(false);
+
+        // Update visibility when checkbox changes
+        useFudgeFactorCheckbox.setOnAction(e -> {
+            setFudgeFactorVisibility(useFudgeFactorCheckbox.isSelected());
+        });
+    }
+
+    private static void setFudgeFactorVisibility(boolean visible) {
+        xFudgeLabel.setVisible(visible);
+        xFudgeField.setVisible(visible);
+        yFudgeLabel.setVisible(visible);
+        yFudgeField.setVisible(visible);
+        vectraForumLink.setVisible(visible);
+    }
+
+
 }

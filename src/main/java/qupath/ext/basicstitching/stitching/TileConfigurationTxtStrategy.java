@@ -69,11 +69,9 @@ public class TileConfigurationTxtStrategy implements StitchingStrategy {
                             Position pos = positionMap.get(filename);
                             Map<String, Integer> dims = UtilityFunctions.getTiffDimensions(tifPath.toFile());
                             if (pos != null && dims != null) {
-                                // Flip Y so that larger Y values are at the top (Fiji-style)
-                                double adjustedY = maxY - pos.y;
                                 ImageRegion region = ImageRegion.createInstance(
                                         (int)Math.round(pos.x),
-                                        (int)Math.round(adjustedY),
+                                        (int)Math.round(pos.y),
                                         dims.get("width"),
                                         dims.get("height"),
                                         0, 0
@@ -81,7 +79,7 @@ public class TileConfigurationTxtStrategy implements StitchingStrategy {
                                 mappings.add(new TileMapping(
                                         tifPath.toFile(), region, path.getFileName().toString()
                                 ));
-                                logger.debug("Mapped {} at ({}, {} [flipped Y]) from config", filename, pos.x, adjustedY);
+                                logger.debug("Mapped {} at ({}, {} [flipped Y]) from config", filename, pos.x, pos.y);
                             } else {
                                 logger.warn("Missing config position or TIFF dimensions for {}", filename);
                             }

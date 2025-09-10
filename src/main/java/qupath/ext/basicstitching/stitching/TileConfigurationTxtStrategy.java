@@ -63,26 +63,50 @@ public class TileConfigurationTxtStrategy implements StitchingStrategy {
                     }
                     double maxY = maxYOpt.getAsDouble();
 
+                    // First try to find TIFF files directly in the main directory
+                    List<Path> tiffFiles = new ArrayList<>();
                     try (DirectoryStream<Path> tifStream = Files.newDirectoryStream(path, "*.tif*")) {
                         for (Path tifPath : tifStream) {
-                            String filename = tifPath.getFileName().toString();
-                            Position pos = positionMap.get(filename);
-                            Map<String, Integer> dims = UtilityFunctions.getTiffDimensions(tifPath.toFile());
-                            if (pos != null && dims != null) {
-                                ImageRegion region = ImageRegion.createInstance(
-                                        (int)Math.round(pos.x),
-                                        (int)Math.round(pos.y),
-                                        dims.get("width"),
-                                        dims.get("height"),
-                                        0, 0
-                                );
-                                mappings.add(new TileMapping(
-                                        tifPath.toFile(), region, path.getFileName().toString()
-                                ));
-                                logger.debug("Mapped {} at ({}, {} [flipped Y]) from config", filename, pos.x, pos.y);
-                            } else {
-                                logger.warn("Missing config position or TIFF dimensions for {}", filename);
+                            tiffFiles.add(tifPath);
+                        }
+                    }
+                    
+                    // If no TIFF files found in main directory, look in angle-specific subdirectories
+                    if (tiffFiles.isEmpty()) {
+                        logger.info("No TIFF files found in main directory {}, searching angle subdirectories", path);
+                        try (DirectoryStream<Path> angleStream = Files.newDirectoryStream(path)) {
+                            for (Path anglePath : angleStream) {
+                                if (Files.isDirectory(anglePath)) {
+                                    try (DirectoryStream<Path> tifStream = Files.newDirectoryStream(anglePath, "*.tif*")) {
+                                        for (Path tifPath : tifStream) {
+                                            tiffFiles.add(tifPath);
+                                            logger.debug("Found TIFF file in angle directory: {}", tifPath);
+                                        }
+                                    }
+                                }
                             }
+                        }
+                    }
+                    
+                    // Process all found TIFF files
+                    for (Path tifPath : tiffFiles) {
+                        String filename = tifPath.getFileName().toString();
+                        Position pos = positionMap.get(filename);
+                        Map<String, Integer> dims = UtilityFunctions.getTiffDimensions(tifPath.toFile());
+                        if (pos != null && dims != null) {
+                            ImageRegion region = ImageRegion.createInstance(
+                                    (int)Math.round(pos.x),
+                                    (int)Math.round(pos.y),
+                                    dims.get("width"),
+                                    dims.get("height"),
+                                    0, 0
+                            );
+                            mappings.add(new TileMapping(
+                                    tifPath.toFile(), region, path.getFileName().toString()
+                            ));
+                            logger.debug("Mapped {} at ({}, {} [flipped Y]) from config", filename, pos.x, pos.y);
+                        } else {
+                            logger.warn("Missing config position or TIFF dimensions for {}", filename);
                         }
                     }
                 }

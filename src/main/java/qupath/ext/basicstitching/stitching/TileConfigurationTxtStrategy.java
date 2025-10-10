@@ -40,81 +40,112 @@ public class TileConfigurationTxtStrategy implements StitchingStrategy {
         List<TileMapping> mappings = new ArrayList<>();
         Path rootdir = Paths.get(folderPath);
 
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(rootdir)) {
-            for (Path path : stream) {
-                if (Files.isDirectory(path) && path.getFileName().toString().contains(matchingString)) {
-                    Path configPath = path.resolve("TileConfiguration.txt");
-                    if (!Files.exists(configPath)) {
-                        logger.warn("No TileConfiguration.txt in subdir: {}", path);
-                        continue;
-                    }
-                    logger.info("Processing subdir: {} with config {}", path, configPath);
-
-                    // Parse positions from config
-                    Map<String, Position> positionMap = parseTileConfig(configPath, pixelSizeInMicrons, baseDownsample);
-
-                    // Compute maxY for this subdirectory (needed for Y-flip adjustment)
-                    OptionalDouble maxYOpt = positionMap.values().stream()
-                            .mapToDouble(pos -> pos.y)
-                            .max();
-                    if (!maxYOpt.isPresent()) {
-                        logger.warn("No tile positions found in config: {}", configPath);
-                        continue;
-                    }
-                    double maxY = maxYOpt.getAsDouble();
-
-                    // First try to find TIFF files directly in the main directory
-                    List<Path> tiffFiles = new ArrayList<>();
-                    try (DirectoryStream<Path> tifStream = Files.newDirectoryStream(path, "*.tif*")) {
-                        for (Path tifPath : tifStream) {
-                            tiffFiles.add(tifPath);
+        // Check if the root directory itself contains TileConfiguration.txt and matches the string
+        // This handles the case where tiles are directly in the folder (common for brightfield)
+        Path rootConfigPath = rootdir.resolve("TileConfiguration.txt");
+        if (Files.exists(rootConfigPath) && rootdir.getFileName().toString().contains(matchingString)) {
+            logger.info("Processing root directory directly: {} (contains matching string and TileConfiguration.txt)", rootdir);
+            mappings.addAll(processDirectory(rootdir, rootConfigPath, pixelSizeInMicrons, baseDownsample));
+        } else {
+            // Original behavior: look for matching subdirectories (for multi-angle acquisitions)
+            logger.info("Searching for subdirectories matching '{}' within: {}", matchingString, folderPath);
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(rootdir)) {
+                for (Path path : stream) {
+                    if (Files.isDirectory(path) && path.getFileName().toString().contains(matchingString)) {
+                        Path configPath = path.resolve("TileConfiguration.txt");
+                        if (!Files.exists(configPath)) {
+                            logger.warn("No TileConfiguration.txt in subdir: {}", path);
+                            continue;
                         }
+                        logger.info("Processing subdir: {} with config {}", path, configPath);
+                        mappings.addAll(processDirectory(path, configPath, pixelSizeInMicrons, baseDownsample));
                     }
-                    
-                    // If no TIFF files found in main directory, look in angle-specific subdirectories
-                    if (tiffFiles.isEmpty()) {
-                        logger.info("No TIFF files found in main directory {}, searching angle subdirectories", path);
-                        try (DirectoryStream<Path> angleStream = Files.newDirectoryStream(path)) {
-                            for (Path anglePath : angleStream) {
-                                if (Files.isDirectory(anglePath)) {
-                                    try (DirectoryStream<Path> tifStream = Files.newDirectoryStream(anglePath, "*.tif*")) {
-                                        for (Path tifPath : tifStream) {
-                                            tiffFiles.add(tifPath);
-                                            logger.debug("Found TIFF file in angle directory: {}", tifPath);
-                                        }
-                                    }
+                }
+            } catch (Exception e) {
+                logger.error("Error searching subdirectories in TileConfigurationTxtStrategy", e);
+            }
+        }
+
+        logger.info("Total tiles mapped from TileConfiguration.txt: {}", mappings.size());
+        return mappings;
+    }
+
+    /**
+     * Process a single directory containing TileConfiguration.txt and TIFF files.
+     *
+     * @param path Directory to process
+     * @param configPath Path to TileConfiguration.txt file
+     * @param pixelSizeInMicrons Pixel size for coordinate conversion
+     * @param baseDownsample Downsample factor
+     * @return List of tile mappings for this directory
+     */
+    private List<TileMapping> processDirectory(Path path, Path configPath, double pixelSizeInMicrons, double baseDownsample) {
+        List<TileMapping> mappings = new ArrayList<>();
+
+        try {
+            // Parse positions from config
+            Map<String, Position> positionMap = parseTileConfig(configPath, pixelSizeInMicrons, baseDownsample);
+
+            // Compute maxY for this subdirectory (needed for Y-flip adjustment)
+            OptionalDouble maxYOpt = positionMap.values().stream()
+                    .mapToDouble(pos -> pos.y)
+                    .max();
+            if (!maxYOpt.isPresent()) {
+                logger.warn("No tile positions found in config: {}", configPath);
+                return mappings;
+            }
+            double maxY = maxYOpt.getAsDouble();
+
+            // First try to find TIFF files directly in the main directory
+            List<Path> tiffFiles = new ArrayList<>();
+            try (DirectoryStream<Path> tifStream = Files.newDirectoryStream(path, "*.tif*")) {
+                for (Path tifPath : tifStream) {
+                    tiffFiles.add(tifPath);
+                }
+            }
+
+            // If no TIFF files found in main directory, look in angle-specific subdirectories
+            if (tiffFiles.isEmpty()) {
+                logger.info("No TIFF files found in main directory {}, searching angle subdirectories", path);
+                try (DirectoryStream<Path> angleStream = Files.newDirectoryStream(path)) {
+                    for (Path anglePath : angleStream) {
+                        if (Files.isDirectory(anglePath)) {
+                            try (DirectoryStream<Path> tifStream = Files.newDirectoryStream(anglePath, "*.tif*")) {
+                                for (Path tifPath : tifStream) {
+                                    tiffFiles.add(tifPath);
+                                    logger.debug("Found TIFF file in angle directory: {}", tifPath);
                                 }
                             }
                         }
                     }
-                    
-                    // Process all found TIFF files
-                    for (Path tifPath : tiffFiles) {
-                        String filename = tifPath.getFileName().toString();
-                        Position pos = positionMap.get(filename);
-                        Map<String, Integer> dims = UtilityFunctions.getTiffDimensions(tifPath.toFile());
-                        if (pos != null && dims != null) {
-                            ImageRegion region = ImageRegion.createInstance(
-                                    (int)Math.round(pos.x),
-                                    (int)Math.round(pos.y),
-                                    dims.get("width"),
-                                    dims.get("height"),
-                                    0, 0
-                            );
-                            mappings.add(new TileMapping(
-                                    tifPath.toFile(), region, path.getFileName().toString()
-                            ));
-                            logger.debug("Mapped {} at ({}, {} [flipped Y]) from config", filename, pos.x, pos.y);
-                        } else {
-                            logger.warn("Missing config position or TIFF dimensions for {}", filename);
-                        }
-                    }
+                }
+            }
+
+            // Process all found TIFF files
+            for (Path tifPath : tiffFiles) {
+                String filename = tifPath.getFileName().toString();
+                Position pos = positionMap.get(filename);
+                Map<String, Integer> dims = UtilityFunctions.getTiffDimensions(tifPath.toFile());
+                if (pos != null && dims != null) {
+                    ImageRegion region = ImageRegion.createInstance(
+                            (int)Math.round(pos.x),
+                            (int)Math.round(pos.y),
+                            dims.get("width"),
+                            dims.get("height"),
+                            0, 0
+                    );
+                    mappings.add(new TileMapping(
+                            tifPath.toFile(), region, path.getFileName().toString()
+                    ));
+                    logger.debug("Mapped {} at ({}, {} [flipped Y]) from config", filename, pos.x, pos.y);
+                } else {
+                    logger.warn("Missing config position or TIFF dimensions for {}", filename);
                 }
             }
         } catch (Exception e) {
-            logger.error("Error in TileConfigurationTxtStrategy", e);
+            logger.error("Error processing directory in TileConfigurationTxtStrategy: {}", path, e);
         }
-        logger.info("Total tiles mapped from TileConfiguration.txt: {}", mappings.size());
+
         return mappings;
     }
 

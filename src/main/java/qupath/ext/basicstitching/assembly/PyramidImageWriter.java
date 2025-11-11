@@ -165,10 +165,6 @@ public class PyramidImageWriter {
 
             long t0 = System.currentTimeMillis();
 
-            // Track progress if callback provided
-            final int[] tilesWritten = {0};
-            final int totalTiles = estimateTotalTiles(pyramidServer);
-
             // Build ZARR writer with configuration
             OMEZarrWriter.Builder builder = new OMEZarrWriter.Builder(pyramidServer)
                     .tileSize(1024, 1024)  // ZARR can handle larger chunks efficiently
@@ -180,13 +176,10 @@ public class PyramidImageWriter {
                 builder.downsamples(baseDownsample, baseDownsample * 2, baseDownsample * 4, baseDownsample * 8);
             }
 
-            // Add progress tracking if callback provided
+            // Note: Progress tracking via onTileWritten() is not available in QuPath 0.6.0-rc4
+            // This feature may be available in future QuPath versions
             if (progressCallback != null) {
-                builder.onTileWritten(tile -> {
-                    tilesWritten[0]++;
-                    double progress = (double) tilesWritten[0] / totalTiles;
-                    progressCallback.accept(progress);
-                });
+                logger.debug("Progress callback provided but not supported by current OMEZarrWriter API");
             }
 
             OMEZarrWriter writer = builder.build(output);

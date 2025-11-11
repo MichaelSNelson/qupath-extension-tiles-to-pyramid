@@ -51,12 +51,14 @@ dependencies {
     shadow(libs.qupath.fxtras)
 
     // bioformats plugin needed for OMEPyramidWriter and OMEZarrWriter
-    // Note: qupath-extension-bioformats 0.6.0+ includes ZARR support with transitive dependencies:
-    //   - OMEZarrReader, JZarr, Blosc compression, JNA for native libraries
     implementation("io.github.qupath:qupath-extension-bioformats:0.6.0-rc4")
 
     // Add Bio-Formats explicitly for compile time to avoid "class file for loci.formats.FormatException not found"
     shadow("ome:formats-gpl:7.1.0")
+
+    // ZARR format support dependencies (explicit for compile-time resolution)
+    // These are needed for OME-ZARR output format functionality
+    implementation("dev.zarr:jzarr:0.4.2")
 
     // If you aren't using Groovy, this can be removed
     shadow(libs.bundles.groovy)

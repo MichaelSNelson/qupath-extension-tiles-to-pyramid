@@ -6,8 +6,7 @@ plugins {
     // QuPath Gradle extension convention plugin
     id("qupath-conventions")
     id("maven-publish")
-    // Platform detection for native library support (Blosc compression for ZARR)
-    id("com.google.osdetector") version "1.7.3"
+    // Note: Platform detection (osdetector) is already provided by qupath-conventions
 }
 
 //Required for working with qupath-extension-qpsc in IntelliJ, allowing import statements to work

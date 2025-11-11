@@ -182,14 +182,19 @@ public class StitchingWorkflow {
                         outBase = subdirName;
                     }
 
-                    // 4c. Write output OME-TIFF pyramid
-                    logger.info("Writing OME-TIFF pyramid for '{}'...", subdirName);
+                    // 4c. Write output pyramid (TIFF or ZARR based on config)
+                    String formatName = config.outputFormat == null ? "OME-TIFF" :
+                                       (config.outputFormat == StitchingConfig.OutputFormat.OME_ZARR ? "OME-ZARR" : "OME-TIFF");
+                    logger.info("Writing {} pyramid for '{}'...", formatName, subdirName);
+
                     String written = PyramidImageWriter.write(
                             server,
                             config.outputPath,
                             outBase,
                             config.compressionType,
-                            config.baseDownsample
+                            config.baseDownsample,
+                            config.outputFormat != null ? config.outputFormat : StitchingConfig.OutputFormat.OME_TIFF,
+                            progress -> logger.debug("Write progress for '{}': {:.1f}%", subdirName, progress * 100)
                     );
 
                     if (written != null) {

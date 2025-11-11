@@ -44,6 +44,7 @@ public class StitchingGUI {
     // GUI Components - static fields for persistence across dialog instances
     static TextField folderField = new TextField(QPPreferences.getFolderLocationSaved());
     static ComboBox<String> compressionBox = new ComboBox<>();
+    static ComboBox<StitchingConfig.OutputFormat> outputFormatBox = new ComboBox<>();
     static TextField pixelSizeField = new TextField(QPPreferences.getImagePixelSizeInMicronsSaved());
     static TextField downsampleField = new TextField(QPPreferences.getDownsampleSaved());
     static TextField matchStringField = new TextField(QPPreferences.getSearchStringSaved());
@@ -57,6 +58,7 @@ public class StitchingGUI {
     static Label stitchingGridLabel = new Label("Stitching Method:");
     static Label folderLabel = new Label("Folder location:");
     static Label compressionLabel = new Label("Compression type:");
+    static Label outputFormatLabel = new Label("Output format:");
     static Label pixelSizeLabel = new Label("Pixel size, microns:");
     static Label downsampleLabel = new Label("Downsample:");
     static Label matchStringLabel = new Label("Stitch sub-folders with text string:");
@@ -99,6 +101,7 @@ public class StitchingGUI {
             String folderPath = folderField.getText();
             String outputPath = folderField.getText();
             String compressionType = compressionBox.getValue();
+            StitchingConfig.OutputFormat outputFormat = outputFormatBox.getValue();
             double pixelSize = parseDoubleField(pixelSizeField.getText(), 0.0);
             double downsample = parseDoubleField(downsampleField.getText(), 1.0);
             String matchingString = matchStringField.getText();
@@ -113,7 +116,7 @@ public class StitchingGUI {
                 yFudgeFactor = parseDoubleField(yFudgeField.getText(), 1.0);
             }
 
-            // Create a config object with fudge factors
+            // Create a config object with fudge factors and output format
             StitchingConfig config = new StitchingConfig(
                     stitchingType,
                     folderPath,
@@ -124,7 +127,8 @@ public class StitchingGUI {
                     matchingString,
                     zSpacingMicrons,
                     xFudgeFactor,
-                    yFudgeFactor
+                    yFudgeFactor,
+                    outputFormat != null ? outputFormat : StitchingConfig.OutputFormat.OME_TIFF
             );
 
             // Use the new workflow
@@ -184,6 +188,7 @@ public class StitchingGUI {
         addFolderSelectionComponents(pane);
         addMatchStringComponents(pane);
         addCompressionComponents(pane);
+        addOutputFormatComponents(pane);
         addPixelSizeComponents(pane);
         addDownsampleComponents(pane);
         addGitHubLinkComponent(pane);
@@ -234,6 +239,7 @@ public class StitchingGUI {
         guiElementPositions.put(stitchingGridLabel, currentPosition++);
         guiElementPositions.put(folderLabel, currentPosition++);
         guiElementPositions.put(compressionLabel, currentPosition++);
+        guiElementPositions.put(outputFormatLabel, currentPosition++);
         guiElementPositions.put(pixelSizeLabel, currentPosition++);
         guiElementPositions.put(downsampleLabel, currentPosition++);
         guiElementPositions.put(matchStringLabel, currentPosition++);
@@ -324,6 +330,26 @@ public class StitchingGUI {
         compressionBox.setTooltip(compressionTooltip);
 
         addToGrid(pane, compressionLabel, compressionBox);
+    }
+
+    /**
+     * Adds output format selection components to the specified GridPane.
+     */
+    private static void addOutputFormatComponents(GridPane pane) {
+        outputFormatBox.getItems().clear();
+        outputFormatBox.getItems().addAll(StitchingConfig.OutputFormat.values());
+
+        // Default to OME-TIFF for backward compatibility
+        outputFormatBox.setValue(StitchingConfig.OutputFormat.OME_TIFF);
+
+        Tooltip formatTooltip = new Tooltip(
+            "OME-TIFF: Traditional single-file format (widely compatible)\n" +
+            "OME-ZARR: Cloud-native directory format (better compression, parallel writing, cloud storage)"
+        );
+        outputFormatLabel.setTooltip(formatTooltip);
+        outputFormatBox.setTooltip(formatTooltip);
+
+        addToGrid(pane, outputFormatLabel, outputFormatBox);
     }
 
     /**

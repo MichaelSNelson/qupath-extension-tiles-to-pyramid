@@ -6,6 +6,8 @@ plugins {
     // QuPath Gradle extension convention plugin
     id("qupath-conventions")
     id("maven-publish")
+    // Platform detection for native library support (Blosc compression for ZARR)
+    id("com.google.osdetector") version "1.7.3"
 }
 
 //Required for working with qupath-extension-qpsc in IntelliJ, allowing import statements to work
@@ -38,19 +40,22 @@ qupathExtension {
     name = "qupath-extension-tiles-to-pyramid"
     group = "io.github.michaelsnelson"
     version = "0.1.0"
-    description = "Convert tiles into a pyramidal ome.tif"
+    description = "Convert tiles into pyramidal OME-TIFF or OME-ZARR formats"
     automaticModule = "io.github.qupath.michaelsnelson.extension.tiles-to-pyramid"
 }
 
-// TODO: Define your dependencies here
 dependencies {
 
     // Main dependencies for most QuPath extensions
     shadow(libs.bundles.qupath)
     shadow(libs.bundles.logging)
     shadow(libs.qupath.fxtras)
-    // bioformats plugin needed for import qupath.lib.images.writers.ome.OMEPyramidWriter;
+
+    // bioformats plugin needed for OMEPyramidWriter and OMEZarrWriter
+    // Note: qupath-extension-bioformats 0.6.0+ includes ZARR support with transitive dependencies:
+    //   - OMEZarrReader, JZarr, Blosc compression, JNA for native libraries
     implementation("io.github.qupath:qupath-extension-bioformats:0.6.0-rc4")
+
     // Add Bio-Formats explicitly for compile time to avoid "class file for loci.formats.FormatException not found"
     shadow("ome:formats-gpl:7.1.0")
 

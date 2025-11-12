@@ -12,6 +12,7 @@ import qupath.lib.images.writers.ome.zarr.OMEZarrWriter;
 import qupath.ext.basicstitching.utilities.UtilityFunctions;
 
 import java.awt.image.BufferedImage;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.function.Consumer;
@@ -152,7 +153,19 @@ public class PyramidImageWriter {
             Path outDir = (baseDownsample == 1)
                     ? Paths.get(outputPath).resolve(filename + ".ome.zarr")
                     : Paths.get(outputPath).resolve(filename + "_" + (int)baseDownsample + "x_downsample.ome.zarr");
-            String output = UtilityFunctions.getUniqueFilePath(outDir.toString());
+
+            // For ZARR, ensure unique directory path (don't use getUniqueFilePath which adds .ome.tif)
+            String output = outDir.toString();
+            int counter = 2;
+            while (Files.exists(Paths.get(output))) {
+                String baseFilename = filename.replaceAll("\\.ome\\.zarr$", "");
+                if (baseDownsample == 1) {
+                    output = Paths.get(outputPath).resolve(baseFilename + "_" + counter + ".ome.zarr").toString();
+                } else {
+                    output = Paths.get(outputPath).resolve(baseFilename + "_" + (int)baseDownsample + "x_downsample_" + counter + ".ome.zarr").toString();
+                }
+                counter++;
+            }
 
             // ZARR compression setup - more flexible than TIFF
             Compressor compressor = createZarrCompressor(compressionType);

@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.TileRequestManager;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -400,6 +401,11 @@ public class WhiteBackgroundImageServer implements ImageServer<BufferedImage> {
         // Note: This doesn't preserve the white background wrapping for serialization
         // If needed, create a custom ServerBuilder
         return wrappedServer.getBuilder();
+    }
+
+    @Override
+    public TileRequestManager getTileRequestManager() {
+        return wrappedServer.getTileRequestManager();
     }
 
     @Override

@@ -6,9 +6,13 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.TileRequestManager;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+
+import java.util.List;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -412,6 +416,31 @@ public class WhiteBackgroundImageServer implements ImageServer<BufferedImage> {
     @Override
     public TileRequestManager getTileRequestManager() {
         return wrappedServer.getTileRequestManager();
+    }
+
+    @Override
+    public PixelType getPixelType() {
+        return wrappedServer.getPixelType();
+    }
+
+    @Override
+    public BufferedImage getCachedTile(TileRequest tile) {
+        return wrappedServer.getCachedTile(tile);
+    }
+
+    @Override
+    public List<String> getAssociatedImageList() {
+        return wrappedServer.getAssociatedImageList();
+    }
+
+    @Override
+    public BufferedImage getAssociatedImage(String name) {
+        return wrappedServer.getAssociatedImage(name);
+    }
+
+    @Override
+    public boolean isEmptyRegion(RegionRequest request) {
+        return wrappedServer.isEmptyRegion(request);
     }
 
     @Override

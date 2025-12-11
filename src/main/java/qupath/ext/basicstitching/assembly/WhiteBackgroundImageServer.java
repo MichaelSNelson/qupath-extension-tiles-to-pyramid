@@ -2,6 +2,7 @@ package qupath.ext.basicstitching.assembly;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
@@ -379,6 +380,11 @@ public class WhiteBackgroundImageServer implements ImageServer<BufferedImage> {
     @Override
     public int nChannels() {
         return wrappedServer.nChannels();
+    }
+
+    @Override
+    public ImageChannel getChannel(int channel) {
+        return wrappedServer.getChannel(channel);
     }
 
     @Override

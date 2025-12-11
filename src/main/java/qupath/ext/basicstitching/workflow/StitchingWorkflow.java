@@ -8,7 +8,9 @@ import qupath.ext.basicstitching.config.StitchingConfig;
 import qupath.ext.basicstitching.stitching.StitchingStrategy;
 import qupath.ext.basicstitching.stitching.StitchingStrategyFactory;
 import qupath.ext.basicstitching.stitching.TileMapping;
-import qupath.lib.images.servers.SparseImageServer;
+import qupath.lib.images.servers.ImageServer;
+
+import java.awt.image.BufferedImage;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.List;
@@ -142,9 +144,10 @@ public class StitchingWorkflow {
                         subdirName, subdirMappings.size());
 
                 try {
-                    // 4a. Assemble sparse image server for this subdirectory
-                    logger.info("Assembling sparse image server...");
-                    SparseImageServer server = ImageAssembler.assemble(
+                    // 4a. Assemble image server for this subdirectory
+                    // Note: For RGB images, this automatically wraps with white background
+                    logger.info("Assembling image server...");
+                    ImageServer<BufferedImage> server = ImageAssembler.assemble(
                             subdirMappings,
                             config.pixelSizeInMicrons,
                             config.zSpacingMicrons
@@ -155,8 +158,8 @@ public class StitchingWorkflow {
                         failureCount++;
                         continue;
                     }
-                    logger.info("Successfully assembled {} tiles into sparse image server",
-                            subdirMappings.size());
+                    logger.info("Successfully assembled {} tiles into image server (type: {})",
+                            subdirMappings.size(), server.getServerType());
 
                     // 4b. Determine output filename
                     String outBase;

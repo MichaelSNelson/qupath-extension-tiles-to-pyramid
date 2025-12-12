@@ -78,6 +78,21 @@ public class ImageAssembler {
 
         logger.info("Assembled {} tiles into sparse image server.", nTiles);
 
+        // Calculate the origin offset (minimum X and Y across all regions)
+        // SparseImageServer uses this internally to shift its coordinate system
+        // so that (0,0) represents the top-left of the bounding box
+        int originX = Integer.MAX_VALUE;
+        int originY = Integer.MAX_VALUE;
+        for (ImageRegion region : coveredRegions) {
+            if (region.getX() < originX) originX = region.getX();
+            if (region.getY() < originY) originY = region.getY();
+        }
+        // Handle edge case of no regions
+        if (originX == Integer.MAX_VALUE) originX = 0;
+        if (originY == Integer.MAX_VALUE) originY = 0;
+
+        logger.debug("Calculated origin offset: ({}, {})", originX, originY);
+
         SparseImageServer sparseServer = builder.build();
 
         // Update server metadata
@@ -96,7 +111,24 @@ public class ImageAssembler {
             // Let WhiteBackgroundImageServer decide if white background should be applied
             // based on its internal color image detection logic
             logger.info("Checking if white background should be applied ({} covered regions)", coveredRegions.size());
-            WhiteBackgroundImageServer wrappedServer = new WhiteBackgroundImageServer(sparseServer, coveredRegions);
+
+            // CRITICAL: Translate covered regions to match SparseImageServer's coordinate space
+            // SparseImageServer shifts all coordinates by (originX, originY) so its (0,0) is the
+            // top-left of the bounding box. We must apply the same transformation to coveredRegions.
+            List<ImageRegion> translatedRegions = new ArrayList<>();
+            for (ImageRegion region : coveredRegions) {
+                translatedRegions.add(ImageRegion.createInstance(
+                        region.getX() - originX,
+                        region.getY() - originY,
+                        region.getWidth(),
+                        region.getHeight(),
+                        region.getZ(),
+                        region.getT()
+                ));
+            }
+            logger.debug("Translated {} regions by offset ({}, {})", translatedRegions.size(), originX, originY);
+
+            WhiteBackgroundImageServer wrappedServer = new WhiteBackgroundImageServer(sparseServer, translatedRegions);
             // Only return wrapped server if it will actually apply white background
             // Otherwise return the raw server to avoid unnecessary wrapping overhead
             if (sparseServer.isRGB() || sparseServer.nChannels() == 3) {
